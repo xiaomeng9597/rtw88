@@ -539,28 +539,36 @@ static const u8 rtw8703b_txpwr_idx_table[] = {
 
 static void try_mac_from_devicetree(struct rtw_dev *rtwdev)
 {
-	struct device_node *node = rtwdev->dev->of_node;
-	struct rtw_efuse *efuse = &rtwdev->efuse;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
-	int ret;
-#else
-	const void *ret;
-#endif
+    struct device_node *node = rtwdev->dev->of_node;
+    struct rtw_efuse *efuse = &rtwdev->efuse;
+    const u8 *mac_addr;
+    int ret;
 
-	if (node) {
+    if (!node)
+        return;
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
-		ret = of_get_mac_address(node, efuse->addr);
-		if (ret == 0) {
+    ret = of_get_mac_address(node, efuse->addr);
+    if (ret == 0) {
+        rtw_dbg(rtwdev, RTW_DBG_EFUSE,
+                 "got wifi mac address from DT: %pM\n",
+                 efuse->addr);
+    } else {
+        /* Handle error */
+        rtw_err(rtwdev, "Failed to get MAC address from DT: %d\n", ret);
+    }
 #else
-		ret = of_get_mac_address(node);
-		if (!IS_ERR(ret)) {
-			ether_addr_copy(efuse->addr, ret);
+    mac_addr = of_get_mac_address(node);
+    if (!IS_ERR(mac_addr)) {
+        memcpy(efuse->addr, mac_addr, ETH_ALEN);
+        rtw_dbg(rtwdev, RTW_DBG_EFUSE,
+                 "got wifi mac address from DT: %pM\n",
+                 efuse->addr);
+    } else {
+        /* Handle error */
+        rtw_err(rtwdev, "Failed to get MAC address from DT\n");
+    }
 #endif
-			rtw_dbg(rtwdev, RTW_DBG_EFUSE,
-				"got wifi mac address from DT: %pM\n",
-				efuse->addr);
-		}
-	}
 }
 
 #define DBG_EFUSE_FIX(rtwdev, name)					\
